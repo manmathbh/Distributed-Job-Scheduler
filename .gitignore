@@ -1,0 +1,18 @@
+# Binaries
+queue-server
+*.exe
+
+# Data
+data/
+*.wal
+*.log
+
+# Docs
+docs/progress.md
+
+# Go
+vendor/
+
+# IDE
+.vscode/
+.idea/
