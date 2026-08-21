@@ -83,7 +83,7 @@ func (kt KeyType) IsValid() bool {
 func ValidateKeyType(s string) (KeyType, error) {
 	kt := KeyType(s)
 	if !kt.IsValid() {
-		return "", fmt.Errorf("invalid key type: %q (must be 'client', 'worker', or 'admin')", s)
+		return "", fmt.Errorf("invalid type: %q (must be 'client', 'worker', or 'admin')", s)
 	}
 	return kt, nil
 }
