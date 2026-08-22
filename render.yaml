@@ -1,0 +1,86 @@
+services:
+  - type: web
+    name: distributed-job-scheduler-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "10000"
+
+      - key: STORE_MODE
+        value: postgres
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: distributed-job-scheduler-db
+          property: connectionString
+
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: distributed-job-scheduler-redis
+          property: connectionString
+
+      - key: SCHEDULER_ENABLED
+        value: "true"
+
+      - key: SCHEDULER_INTERVAL
+        value: "2s"
+
+      - key: WORKER_ENABLED
+        value: "false"
+
+      - key: LEASE_DURATION
+        value: "30s"
+
+      - key: LEASE_CHECK_INTERVAL
+        value: "5s"
+
+      - key: HEARTBEAT_INTERVAL
+        value: "10s"
+
+      - key: SEED_DEMO
+        value: "true"
+
+  - type: worker
+    name: distributed-job-scheduler-worker
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerCommand: ./worker
+    envVars:
+      - key: STORE_MODE
+        value: postgres
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: distributed-job-scheduler-db
+          property: connectionString
+
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: distributed-job-scheduler-redis
+          property: connectionString
+
+      - key: WORKER_CONCURRENCY
+        value: "4"
+
+      - key: WORKER_ID
+        value: render-worker-1
+
+      - key: LEASE_DURATION
+        value: "30s"
+
+      - key: HEARTBEAT_INTERVAL
+        value: "10s"
+
+databases:
+  - name: distributed-job-scheduler-db
+    plan: free
+
+  - name: distributed-job-scheduler-redis
+    type: keyvalue
+    plan: free
