@@ -61,10 +61,7 @@ services:
   - type: keyvalue
     name: distributed-job-scheduler-redis
     plan: free
-
-    ipAllowList:
-      - source: 0.0.0.0/0
-        description: Allow connections
+    ipAllowList: []
 
 
 databases:
