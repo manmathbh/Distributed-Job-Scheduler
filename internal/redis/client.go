@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -43,8 +44,19 @@ func NewClient(cfg *Config) (*Client, error) {
 		cfg = DefaultConfig()
 	}
 
+	redisURL := cfg.URL
+
+	// Support both:
+	//   localhost:6379
+	//   redis://host:6379
+	//   rediss://host:6379
+	if !strings.HasPrefix(redisURL, "redis://") &&
+		!strings.HasPrefix(redisURL, "rediss://") {
+		redisURL = "redis://" + redisURL
+	}
+
 	// Parse Redis URL
-	opts, err := redis.ParseURL(fmt.Sprintf("redis://%s", cfg.URL))
+	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
@@ -65,6 +77,7 @@ func NewClient(cfg *Config) (*Client, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
+		client.Close()
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
