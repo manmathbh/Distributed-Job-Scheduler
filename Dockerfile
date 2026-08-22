@@ -10,16 +10,18 @@ RUN go mod download
 # Copy source
 COPY . .
 
-# Build binary
+# Build binaries
 RUN CGO_ENABLED=0 GOOS=linux go build -o queue-server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o worker ./cmd/worker
 
 # Runtime stage
 FROM alpine:latest
 
 WORKDIR /app
 
-# Copy binary from builder
+# Copy binaries from builder
 COPY --from=builder /app/queue-server .
+COPY --from=builder /app/worker .
 
 # Create data directory for WAL
 RUN mkdir -p /app/data

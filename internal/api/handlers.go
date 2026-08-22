@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/manmathbh/distributed-job-scheduler/internal/auth"
+	"github.com/manmathbh/distributed-job-scheduler/internal/metrics"
 	"github.com/manmathbh/distributed-job-scheduler/internal/queue"
+	"github.com/manmathbh/distributed-job-scheduler/internal/service"
 )
 
 // Server holds the queue core and HTTP handlers
@@ -17,15 +19,35 @@ type Server struct {
 	core          *queue.Core
 	leaseDuration time.Duration
 	authStore     auth.Store
+
+	svc     *service.Service
+	metrics *metrics.Registry
+}
+
+// Option configures a Server.
+type Option func(*Server)
+
+// WithService wires the business service (enables /api/v1 endpoints).
+func WithService(svc *service.Service) Option {
+	return func(s *Server) { s.svc = svc }
+}
+
+// WithMetrics wires the metrics registry.
+func WithMetrics(m *metrics.Registry) Option {
+	return func(s *Server) { s.metrics = m }
 }
 
 // NewServer creates a new API server
-func NewServer(core *queue.Core, leaseDuration time.Duration, authStore auth.Store) *Server {
-	return &Server{
+func NewServer(core *queue.Core, leaseDuration time.Duration, authStore auth.Store, opts ...Option) *Server {
+	s := &Server{
 		core:          core,
 		leaseDuration: leaseDuration,
 		authStore:     authStore,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // SubmitJobRequest represents the job submission request
@@ -280,4 +302,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Revoke key: needs scope + ownership check in handler
 	mux.Handle("/keys/", authMW(RequireScope(auth.ScopeKeysRevoke)(http.HandlerFunc(s.HandleRevokeKey))))
+
+	// /api/v1 endpoints (PostgreSQL-backed scheduler) if the service is wired.
+	if s.svc != nil {
+		s.registerV1Routes(mux, authMW)
+	}
 }

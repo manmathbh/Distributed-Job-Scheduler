@@ -1,40 +1,85 @@
 version: '3.8'
 
 services:
-  queue:
+  api:
     build: .
-    container_name: job-queue
+    container_name: job-scheduler-api
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/app/data  # WAL persistence across restarts
+      - ./data:/app/data
     environment:
-      # Server configuration
-      - PORT=8080                        # HTTP server port
-      - WAL_DIR=/app/data                # Write-Ahead Log directory
-      - LEASE_DURATION=30s               # How long workers can hold a job
-      - LEASE_CHECK_INTERVAL=5s          # How often to check for expired leases
-      # Redis configuration
-      - REDIS_URL=redis:6379             # Redis connection URL
+      - PORT=8080
+      - WAL_DIR=/app/data
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/jobscheduler?sslmode=disable
+      - STORE_MODE=postgres
+      - REDIS_URL=redis:6379
+      - LEASE_DURATION=30s
+      - LEASE_CHECK_INTERVAL=5s
+      - HEARTBEAT_INTERVAL=10s
+      - SCHEDULER_ENABLED=true
+      - SCHEDULER_INTERVAL=2s
+      - WORKER_ENABLED=true
+      - WORKER_CONCURRENCY=4
+      - WORKER_ID=api-worker
+      - SEED_DEMO=true
     depends_on:
-      - redis
-    restart: unless-stopped              # Auto-restart on crash (not on manual stop)
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["./worker"]
+    container_name: job-scheduler-worker
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/jobscheduler?sslmode=disable
+      - WORKER_CONCURRENCY=4
+      - WORKER_ID=standalone-worker
+      - LEASE_DURATION=30s
+      - HEARTBEAT_INTERVAL=10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: job-scheduler-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=jobscheduler
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jobscheduler"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    container_name: job-queue-redis
+    container_name: job-scheduler-redis
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes --appendfsync everysec
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
 volumes:
+  postgres-data:
+    driver: local
   redis-data:
     driver: local
