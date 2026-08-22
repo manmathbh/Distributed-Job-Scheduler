@@ -22,8 +22,8 @@ services:
 
       - key: REDIS_URL
         fromService:
-          type: keyvalue
           name: distributed-job-scheduler-redis
+          type: keyvalue
           property: connectionString
 
       - key: SCHEDULER_ENABLED
@@ -67,8 +67,8 @@ services:
 
       - key: REDIS_URL
         fromService:
-          type: keyvalue
           name: distributed-job-scheduler-redis
+          type: keyvalue
           property: connectionString
 
       - key: WORKER_CONCURRENCY
@@ -88,10 +88,11 @@ services:
   - type: keyvalue
     name: distributed-job-scheduler-redis
     plan: free
+    ipAllowList: []
 
 
 databases:
 
-  # PostgreSQL ONLY
+  # PostgreSQL
   - name: distributed-job-scheduler-db
     plan: free
