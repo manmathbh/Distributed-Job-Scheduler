@@ -1,6 +1,6 @@
 services:
 
-  # API
+  # API + Scheduler + In-process Worker
   - type: web
     name: distributed-job-scheduler-api
     runtime: docker
@@ -22,19 +22,28 @@ services:
 
       - key: REDIS_URL
         fromService:
-          name: distributed-job-scheduler-redis
           type: keyvalue
+          name: distributed-job-scheduler-redis
           property: connectionString
 
+      # Scheduler
       - key: SCHEDULER_ENABLED
         value: "true"
 
       - key: SCHEDULER_INTERVAL
         value: "2s"
 
+      # Worker runs INSIDE the API process
       - key: WORKER_ENABLED
-        value: "false"
+        value: "true"
 
+      - key: WORKER_CONCURRENCY
+        value: "4"
+
+      - key: WORKER_ID
+        value: "render-api-worker"
+
+      # Leases / heartbeats
       - key: LEASE_DURATION
         value: "30s"
 
@@ -48,47 +57,14 @@ services:
         value: "true"
 
 
-  # Worker
-  - type: worker
-    name: distributed-job-scheduler-worker
-    runtime: docker
-    plan: starter
-    dockerfilePath: ./Dockerfile
-    dockerCommand: ./worker
-
-    envVars:
-      - key: STORE_MODE
-        value: postgres
-
-      - key: DATABASE_URL
-        fromDatabase:
-          name: distributed-job-scheduler-db
-          property: connectionString
-
-      - key: REDIS_URL
-        fromService:
-          name: distributed-job-scheduler-redis
-          type: keyvalue
-          property: connectionString
-
-      - key: WORKER_CONCURRENCY
-        value: "4"
-
-      - key: WORKER_ID
-        value: render-worker-1
-
-      - key: LEASE_DURATION
-        value: "30s"
-
-      - key: HEARTBEAT_INTERVAL
-        value: "10s"
-
-
-  # Redis / Key Value
+  # Redis-compatible Key Value
   - type: keyvalue
     name: distributed-job-scheduler-redis
     plan: free
-    ipAllowList: []
+
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow connections
 
 
 databases:
