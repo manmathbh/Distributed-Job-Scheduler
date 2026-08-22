@@ -12,6 +12,10 @@ import (
 
 // registerV1Routes wires the PostgreSQL-backed scheduler API under /api/v1.
 func (s *Server) registerV1Routes(mux *http.ServeMux, authMW func(http.Handler) http.Handler) {
+	// Public onboarding endpoint. It creates a client API key; all scheduler
+	// resources below remain protected by Bearer API-key authentication.
+	mux.HandleFunc("POST /api/v1/auth/register", s.handleRegister)
+
 	authed := func(h http.HandlerFunc) http.Handler { return authMW(h) }
 
 	// Projects
