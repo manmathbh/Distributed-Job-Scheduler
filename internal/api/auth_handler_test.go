@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -28,7 +29,7 @@ func TestHandleRegisterCreatesClientAPIKey(t *testing.T) {
 	store := newTestAuthStore(t)
 	s := NewServer(nil, 0, store)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", stringsReader(`{"name":"Test User","email":"test@example.com"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"name":"Test User","email":"test@example.com"}`))
 	req = req.WithContext(context.Background())
 	rec := httptest.NewRecorder()
 
@@ -55,13 +56,10 @@ func TestHandleRegisterRejectsInvalidEmail(t *testing.T) {
 	store := newTestAuthStore(t)
 	s := NewServer(nil, 0, store)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", stringsReader(`{"name":"Test User","email":"not-an-email"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"name":"Test User","email":"not-an-email"}`))
 	rec := httptest.NewRecorder()
 
 	s.handleRegister(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
-
-// stringsReader keeps the tests independent of io/ioutil helpers.
-func stringsReader(s string) *strings.Reader { return strings.NewReader(s) }
