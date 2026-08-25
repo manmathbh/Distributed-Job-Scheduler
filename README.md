@@ -33,37 +33,26 @@ The scheduler is organized around projects, queues, jobs, and workers.
 
 ## Architecture
 
-``` mermaid
-flowchart TD
-    A[Client / Dashboard / curl] -->|Bearer API Key| B[HTTP API]
+The system consists of an HTTP API, PostgreSQL, Redis, schedulers, workers,
+and the web dashboard.
 
-    B --> C[Authentication]
-    B --> D[Project & Queue APIs]
-    B --> E[Job APIs]
-    B --> F[Worker & Metrics APIs]
+![Distributed Job Scheduler Architecture](docs/images/Architecture.png)
 
-    C --> R[(Redis)]
-    D --> P[(PostgreSQL)]
-    E --> P
-    F --> P
+The API accepts requests from clients and the dashboard using Bearer API
+keys. PostgreSQL acts as the authoritative store for projects, queues, jobs,
+workers, executions, schedules, and dead-letter records.
 
-    S[Scheduler] -->|Promote delayed / scheduled / recurring jobs| P
-    S -->|Recover expired leases| P
+Redis is used for API-key authentication and transient state, while the WAL
+continues to support the legacy queue implementation.
 
-    W1[Worker 1] -->|Poll & claim jobs| P
-    W2[Worker 2] -->|Poll & claim jobs| P
-    W3[Worker N] -->|Poll & claim jobs| P
+### Job Lifecycle
 
-    W1 -->|Heartbeat / Ack / Fail| P
-    W2 -->|Heartbeat / Ack / Fail| P
-    W3 -->|Heartbeat / Ack / Fail| P
+Jobs are submitted to PostgreSQL and remain queued until a worker atomically
+claims them. The worker executes the job and either completes it, retries it
+when attempts remain, or moves it to the Dead Letter Queue after all attempts
+are exhausted.
 
-    P --> H[Execution History / Logs / Dead Letters]
-
-    L[Legacy Queue API] --> Q[WAL + In-memory Queue]
-    Q --> L
-```
-
+![Job Lifecycle](docs/images/Flow.png)
 The main flow is:
 
 1.  A client connects using an API key.
@@ -636,38 +625,6 @@ A simplified view of the repository:
 -   [API reference](docs/API.md)
 -   [ER diagram](docs/ER_DIAGRAM.md)
 
-## A quick test from start to finish
-
-If you only want to verify that the deployed system is working, the
-shortest path is:
-
-``` text
-Register
-   |
-   v
-Get client API key
-   |
-   v
-Connect
-   |
-   v
-Create project
-   |
-   v
-Create queue
-   |
-   v
-Submit immediate job
-   |
-   v
-Check Jobs page
-   |
-   v
-Job becomes completed
-```
-
-If the job stays queued, check the **Workers** page first. A worker
-needs to be running and connected to the same scheduler environment.
 
 ## License
 
